@@ -42,11 +42,8 @@ export default function Home() {
       <div className="container mx-auto px-4 py-8">
         <header className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Image Server API テスト
+            素材迷子対策とTODO管理
           </h1>
-          <p className="text-gray-600">
-            バックエンドAPIの動作を確認できるフロントエンドです
-          </p>
         </header>
 
         {error && (
