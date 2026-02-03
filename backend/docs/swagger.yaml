@@ -1,0 +1,522 @@
+basePath: /api/v1
+definitions:
+  internal_infrastructure_http.AssociateTagRequest:
+    description: メディアにタグを関連付けるリクエスト
+    properties:
+      tag_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    required:
+    - tag_id
+    type: object
+  internal_infrastructure_http.CreateMediaWithYouTubeRequest:
+    description: YouTube URLでメディアを作成するリクエスト
+    properties:
+      description:
+        example: これはサンプル動画です
+        type: string
+      tag_ids:
+        example:
+        - 550e8400-e29b-41d4-a716-446655440000
+        items:
+          type: string
+        type: array
+      title:
+        example: サンプル動画
+        type: string
+      youtube_url:
+        example: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+        type: string
+    required:
+    - title
+    - youtube_url
+    type: object
+  internal_infrastructure_http.CreateTagRequest:
+    description: タグを作成するリクエスト
+    properties:
+      name:
+        example: 新規タグ
+        type: string
+    required:
+    - name
+    type: object
+  internal_infrastructure_http.ErrorResponse:
+    description: エラー情報
+    properties:
+      error:
+        example: error message
+        type: string
+    type: object
+  internal_infrastructure_http.MediaListResponse:
+    description: メディア一覧
+    properties:
+      media:
+        items:
+          $ref: '#/definitions/internal_infrastructure_http.MediaResponse'
+        type: array
+    type: object
+  internal_infrastructure_http.MediaResponse:
+    description: メディア情報
+    properties:
+      cloudfront_url:
+        example: https://cloudfront.net/images/550e8400-e29b-41d4-a716-446655440000.jpg
+        type: string
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      description:
+        example: これはサンプル画像です
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      s3_key:
+        example: images/550e8400-e29b-41d4-a716-446655440000.jpg
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/internal_infrastructure_http.TagResponse'
+        type: array
+      title:
+        example: サンプル画像
+        type: string
+      type:
+        enum:
+        - image
+        - video
+        example: image
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      youtube_url:
+        example: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+        type: string
+    type: object
+  internal_infrastructure_http.MessageResponse:
+    description: メッセージ
+    properties:
+      message:
+        example: success message
+        type: string
+    type: object
+  internal_infrastructure_http.TagListResponse:
+    description: タグ一覧
+    properties:
+      tags:
+        items:
+          $ref: '#/definitions/internal_infrastructure_http.TagResponse'
+        type: array
+    type: object
+  internal_infrastructure_http.TagResponse:
+    description: タグ情報
+    properties:
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      name:
+        example: 画像
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+    type: object
+  internal_infrastructure_http.UpdateTagRequest:
+    description: タグを更新するリクエスト
+    properties:
+      name:
+        example: 更新されたタグ名
+        type: string
+    required:
+    - name
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://www.example.com/support
+  description: 画像・動画保存・表示サービスのAPI
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Image Server API
+  version: "1.0"
+paths:
+  /media:
+    get:
+      description: すべてのメディアの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MediaListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: メディア一覧を取得
+      tags:
+      - media
+  /media/{id}:
+    delete:
+      description: IDを指定してメディアを削除します（S3からも削除されます）
+      parameters:
+      - description: メディアID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: メディアを削除
+      tags:
+      - media
+    get:
+      description: IDを指定してメディア情報を取得します
+      parameters:
+      - description: メディアID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MediaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: メディアを取得
+      tags:
+      - media
+  /media/{id}/tags:
+    post:
+      consumes:
+      - application/json
+      description: メディアにタグを関連付けます
+      parameters:
+      - description: メディアID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_infrastructure_http.AssociateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: メディアにタグを関連付け
+      tags:
+      - media-tags
+  /media/{id}/tags/{tag_id}:
+    delete:
+      description: メディアからタグの関連付けを削除します
+      parameters:
+      - description: メディアID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: タグID
+        in: path
+        name: tag_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: メディアからタグを削除
+      tags:
+      - media-tags
+  /media/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 画像ファイルをS3にアップロードし、メディア情報をDBに保存します
+      parameters:
+      - description: 画像ファイル
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: タイトル
+        in: formData
+        name: title
+        required: true
+        type: string
+      - description: 説明
+        in: formData
+        name: description
+        type: string
+      - description: タグIDの配列
+        in: formData
+        name: tag_ids
+        type: array
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MediaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: 画像をアップロード
+      tags:
+      - media
+  /media/youtube:
+    post:
+      consumes:
+      - application/json
+      description: YouTube URLを指定してメディア情報をDBに保存します
+      parameters:
+      - description: リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_infrastructure_http.CreateMediaWithYouTubeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MediaResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: YouTube URLでメディアを作成
+      tags:
+      - media
+  /tags:
+    get:
+      description: すべてのタグの一覧を取得します
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.TagListResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: タグ一覧を取得
+      tags:
+      - tags
+    post:
+      consumes:
+      - application/json
+      description: 新しいタグを作成します
+      parameters:
+      - description: リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_infrastructure_http.CreateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.TagResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: タグを作成
+      tags:
+      - tags
+  /tags/{id}:
+    delete:
+      description: IDを指定してタグを削除します
+      parameters:
+      - description: タグID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: タグを削除
+      tags:
+      - tags
+    get:
+      description: IDを指定してタグ情報を取得します
+      parameters:
+      - description: タグID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.TagResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: タグを取得
+      tags:
+      - tags
+    put:
+      consumes:
+      - application/json
+      description: IDを指定してタグ情報を更新します
+      parameters:
+      - description: タグID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: リクエスト
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_infrastructure_http.UpdateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.TagResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: タグを更新
+      tags:
+      - tags
+  /tags/{tag_id}/media:
+    get:
+      description: タグIDを指定して関連するメディアの一覧を取得します
+      parameters:
+      - description: タグID
+        in: path
+        name: tag_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.MediaListResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/internal_infrastructure_http.ErrorResponse'
+      summary: タグでメディアを取得
+      tags:
+      - media-tags
+schemes:
+- http
+- https
+swagger: "2.0"

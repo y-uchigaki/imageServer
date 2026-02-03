@@ -1,0 +1,112 @@
+version: '3.8'
+
+services:
+  # PostgreSQL データベース
+  postgres-imageserver:
+    image: postgres:15-alpine
+    container_name: imageserver-postgres
+    environment:
+      POSTGRES_USER: imageserver
+      POSTGRES_PASSWORD: imageserver
+      POSTGRES_DB: imageserver
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imageserver"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - imageserver-network
+
+  # LocalStack (AWS エミュレーター)
+  localstack-imageserver:
+    image: localstack/localstack:latest
+    container_name: imageserver-localstack
+    ports:
+      - "4566:4566"            # LocalStack ゲートウェイ
+      - "4510-4559:4510-4559"  # 外部サービスポート
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - PERSISTENCE=1
+      - LAMBDA_EXECUTOR=local
+      - HOST_TMP_FOLDER=${TMPDIR:-/tmp/}localstack
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - imageserver-network
+
+  # 初期化スクリプト（S3バケット作成など）
+  localstack-init:
+    image: amazon/aws-cli:latest
+    container_name: imageserver-localstack-init
+    depends_on:
+      localstack-imageserver:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - AWS_DEFAULT_REGION=ap-northeast-1
+      - AWS_ENDPOINT_URL=http://localstack-imageserver:4566
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Waiting for LocalStack to be ready..."
+        sleep 5
+        echo "Creating S3 bucket..."
+        aws --endpoint-url=http://localstack-imageserver:4566 s3 mb s3://imageserver-bucket || true
+        echo "Setting bucket policy for public read..."
+        aws --endpoint-url=http://localstack-imageserver:4566 s3api put-bucket-acl --bucket imageserver-bucket --acl public-read || true
+        echo "LocalStack initialization complete!"
+    networks:
+      - imageserver-network
+
+  # バックエンドAPIサーバー
+  backend-imageserver:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: imageserver-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgres://imageserver:imageserver@postgres-imageserver:5432/imageserver?sslmode=disable
+      - AWS_REGION=ap-northeast-1
+      - AWS_S3_BUCKET=imageserver-bucket
+      - AWS_CLOUDFRONT_URL=http://localhost:4566/imageserver-bucket
+      - AWS_ENDPOINT_URL=http://localstack-imageserver:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - PORT=8080
+    depends_on:
+      postgres-imageserver:
+        condition: service_healthy
+      localstack-imageserver:
+        condition: service_healthy
+      localstack-init:
+        condition: service_completed_successfully
+    networks:
+      - imageserver-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  localstack_data:
+    driver: local
+
+networks:
+  imageserver-network:
+    driver: bridge
